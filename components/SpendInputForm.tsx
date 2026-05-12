@@ -82,7 +82,7 @@ export default function SpendInputForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Honeypot field for abuse protection */}
-            <input type="text" {...form.register("honey")} className="hidden" tabIndex={-1} autoComplete="off" />
+            <input type="text" {...form.register("honey")} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
 
             {fields.map((field, index) => (
               <div key={field.id} className="flex items-end gap-3 p-4 border rounded-lg bg-slate-50/50">
@@ -138,8 +138,7 @@ export default function SpendInputForm() {
                   variant="ghost"
                   size="icon"
                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => remove(index)}
-                  disabled={fields.length === 1}
+                  aria-label="Remove tool"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
