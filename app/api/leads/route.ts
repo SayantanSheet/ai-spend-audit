@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
+// Constants for Supabase and SDKs
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-const resend = new Resend(process.env.RESEND_API_KEY);
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
+const resendApiKey = process.env.RESEND_API_KEY || '';
+const openrouterApiKey = process.env.OPENROUTER_API_KEY || '';
+const openrouterModel = "nvidia/nemotron-3-super-120b-a12b:free";
 
-// Basic in-memory rate limiting (Note: in production, Redis or Upstash should be used)
+// Rate limiting (basic in-memory)
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
 const RATE_LIMIT = 5; // max 5 requests per minute
 const WINDOW_MS = 60 * 1000;
@@ -55,34 +56,49 @@ export async function POST(req: Request) {
         }
 
         // 3. Save Lead to Supabase
-        const { error: dbError } = await supabase
-            .from('leads')
-            .insert([{ email, total_spend: totalSpend, potential_savings: savings }]);
+        if (!supabaseUrl || !supabaseKey) {
+            console.warn("Supabase not configured, skipping lead save.");
+        } else {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            const { error: dbError } = await supabase
+                .from('leads')
+                .insert([{ email, total_spend: totalSpend, potential_savings: savings }]);
 
-        if (dbError && dbError.code !== '23505') {
-            // Ignore unique constraint violation for duplicate emails to avoid leaking user info, log others
-            console.error('Supabase error:', dbError);
-            return NextResponse.json({ error: 'Failed to save lead' }, { status: 500 });
+            if (dbError && dbError.code !== '23505') {
+                console.error('Supabase error:', dbError);
+            }
         }
 
         // 4. Generate AI Summary (Deterministic via strict prompting)
         let aiSummaryText = "Based on your audit, you have significant room to optimize your SaaS spend. Consider switching to the suggested tools to reclaim your budget.";
         try {
-            if (process.env.ANTHROPIC_API_KEY) {
-                const msg = await anthropic.messages.create({
-                    model: "claude-3-haiku-20240307",
-                    max_tokens: 150,
-                    system: "You are a financial advisor specializing in SaaS cost optimization. Output a strict 100-word summary highlighting overspend and alternatives. No greeting.",
+            if (openrouterApiKey) {
+                const openai = new OpenAI({
+                    apiKey: openrouterApiKey,
+                    baseURL: "https://openrouter.ai/api/v1",
+                    defaultHeaders: {
+                        "HTTP-Referer": "http://localhost:3000", // Optional for OpenRouter
+                        "X-Title": "AI Spend Audit", // Optional for OpenRouter
+                    }
+                });
+
+                const completion = await openai.chat.completions.create({
+                    model: openrouterModel,
                     messages: [
+                        {
+                            role: "system",
+                            content: "You are a financial advisor specializing in SaaS cost optimization. Output a strict 100-word summary highlighting overspend and alternatives. No greeting."
+                        },
                         {
                             role: "user",
                             content: `Current Spend: $${totalSpend}\nSavings: $${savings}\nAlternatives: ${JSON.stringify(alternatives)}`
                         }
-                    ]
+                    ],
                 });
-                if (msg.content[0].type === 'text') {
-                    aiSummaryText = msg.content[0].text;
-                }
+
+                aiSummaryText = completion.choices[0].message.content || aiSummaryText;
+            } else {
+                console.warn("OpenRouter API key missing, using fallback summary.");
             }
         } catch (aiError) {
             console.error('AI generation fallback triggered:', aiError);
@@ -91,13 +107,16 @@ export async function POST(req: Request) {
 
         // 5. Send welcome / report email via Resend
         try {
-            if (process.env.RESEND_API_KEY) {
+            if (resendApiKey) {
+                const resend = new Resend(resendApiKey);
                 await resend.emails.send({
                     from: 'Audit Tool <onboarding@resend.dev>',
                     to: email,
                     subject: 'Your AI Spend Audit Report',
                     html: `<p>Thank you for using the AI Spend Audit.</p><p><strong>Summary:</strong> ${aiSummaryText}</p><p>You can view your full report by returning to the platform.</p>`
                 });
+            } else {
+                console.warn("Resend API key missing, skipping email.");
             }
         } catch (emailError) {
             console.error('Email sending failed:', emailError);

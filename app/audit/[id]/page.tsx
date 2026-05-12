@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { CredexCTA } from "@/components/CredexCTA";
+import { AISummarySection } from "@/components/AISummarySection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 
@@ -7,12 +8,13 @@ import { AlertCircle } from "lucide-react";
 // This allows scaffolding the full UI and OG/Meta tags without blocking on DB schema.
 
 interface PageProps {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    const { id } = await params;
     return {
-        title: `AI Spend Audit Results | ${params.id}`,
+        title: `AI Spend Audit Results | ${id}`,
         description: "View the personalized AI overspend report and optimization plan.",
         openGraph: {
             title: "Your AI Spend Audit Results",
@@ -28,7 +30,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
 }
 
-export default function AuditResultsPage({ params }: PageProps) {
+export default async function AuditResultsPage({ params }: PageProps) {
+    const { id } = await params;
     // Mocking the result payload for Day 3 UI scaffolding
     const mockResult = {
         totalMonthlySpend: 620, // Let's test the >$500 threshold
@@ -46,7 +49,7 @@ export default function AuditResultsPage({ params }: PageProps) {
             <main className="w-full max-w-4xl space-y-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">Audit Results</h1>
-                    <p className="text-slate-500">Report ID: {params.id}</p>
+                    <p className="text-slate-500">Report ID: {id}</p>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-4">
@@ -94,6 +97,12 @@ export default function AuditResultsPage({ params }: PageProps) {
                         </CardContent>
                     </Card>
                 )}
+
+                <AISummarySection
+                    totalSpend={mockResult.totalMonthlySpend}
+                    savings={mockResult.estimatedMonthlySavings}
+                    alternatives={["ChatGPT Plus", "Claude Pro", "Standardized Midjourney Plan"]}
+                />
 
                 <CredexCTA spend={mockResult.totalMonthlySpend} />
 

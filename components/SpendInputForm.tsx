@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 
 // 1. Zod Schema
 export const spendSchema = z.object({
@@ -47,6 +48,7 @@ export const useSpendStore = create<SpendStore>()(
 export default function SpendInputForm() {
   const { data, setSpendData } = useSpendStore();
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
 
   // Prevent Next.js hydration mismatch by only rendering after mount
   useEffect(() => setMounted(true), []);
@@ -65,9 +67,9 @@ export default function SpendInputForm() {
     setSpendData(values);
     console.log("Locally saved data structure:", values);
 
-    // Day 4 Integration: Trigger API
-    // fetch('/api/audit', { method: 'POST', body: JSON.stringify(values) });
-    // router.push(`/audit/mock123`);
+    // Redirect to the audit results page
+    // Using a mock ID for now as per the current scope
+    router.push(`/audit/gen-` + Math.random().toString(36).substring(7));
   };
 
   if (!mounted) return null;
@@ -139,6 +141,8 @@ export default function SpendInputForm() {
                   size="icon"
                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
                   aria-label="Remove tool"
+                  onClick={() => remove(index)}
+                  disabled={fields.length === 1}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

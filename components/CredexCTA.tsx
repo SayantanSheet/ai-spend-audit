@@ -19,9 +19,14 @@ export function CredexCTA({ spend }: { spend: number }) {
                                 consolidation, team management, and flat-rate API aggregation that could save your team
                                 thousands of dollars annually while retaining all capabilities.
                             </p>
-                            <button className="bg-indigo-600 text-white px-5 py-2 rounded-md font-medium text-sm flex items-center gap-2 hover:bg-indigo-700 transition-colors">
+                            <a
+                                href="https://calendly.com/credex-strategy-mock"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex bg-indigo-600 text-white px-5 py-2 rounded-md font-medium text-sm items-center gap-2 hover:bg-indigo-700 transition-colors"
+                            >
                                 Book Credex Strategy Call <ArrowRight className="w-4 h-4" />
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </CardContent>
